@@ -1,0 +1,92 @@
+PREFIX : <http://jena.apache.org/fuseki#>
+PREFIX schema: <https://ns.volunteeringdata.io/>
+PREFIX ja: <http://jena.hpl.hp.com/2005/11/Assembler#>
+PREFIX tdb2: <http://jena.apache.org/2016/tdb#>
+PREFIX text: <http://jena.apache.org/text#>
+
+[
+    a :Service ;
+
+    # The path prefix for this service
+    # Empty string makes it the root
+    :name "" ;
+
+    :endpoint [
+        # A SPARQL endpoint
+        :operation :query ;
+
+        # The path prefix for this endpoint
+        :name "sparql"
+    ] ;
+
+    :endpoint [
+        # A Graph Store Protocol endpoint
+        :operation :gsp-r ;
+
+        :name "graph"
+    ] ;
+
+    # The data exposed by this service
+    :dataset [
+        # Full-text search
+        # See https://jena.apache.org/documentation/query/text-query.html
+        a text:TextDataset ;
+
+
+        # Text index
+        text:index [
+            a text:TextIndexLucene ;
+
+            text:storeValues true ;
+
+            # The location on disk where the index will be created by jena.textindexer
+            text:directory "./fts-index/" ;
+
+            text:entityMap <entityMap> ;
+        ] ;
+
+        # The underlying dataset
+        text:dataset [
+            a ja:RDFDataset ;
+
+            ja:defaultGraph [
+                # OWL micro inferencing
+                a ja:InfModel;
+                ja:reasoner [
+                    ja:reasonerURL <http://jena.hpl.hp.com/2003/OWLMicroFBRuleReasoner>
+                ] ;
+
+                ja:baseModel [
+                    a tdb2:GraphTDB2 ;
+                    tdb2:location "./db" ;
+                ] ;
+            ] ;
+        ] ;
+    ] ;
+] .
+
+# This must be a URI node for some reason.
+<entityMap>
+    a text:EntityMap ;
+    text:entityField "uri" ;
+    text:defaultField "activityTitle" ;
+    text:uidField "uid" ;
+    text:map (
+        [
+            text:field "activityTitle" ;
+            text:predicate schema:activityTitle ;
+        ]
+        [
+            text:field "activityDescription" ;
+            text:predicate schema:activityDescription ;
+        ]
+        [
+            text:field "organisationName" ;
+            text:predicate schema:organisationName ;
+        ]
+        [
+            text:field "organisationDescription" ;
+            text:predicate schema:organisationDescription ;
+        ]
+    ) ;
+.
