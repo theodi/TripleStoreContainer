@@ -11,7 +11,7 @@ ENV ARCHIVE http://archive.apache.org/dist
 
 # Fuseki installation
 ENV FUSEKI_HOME /jena-fuseki
-ARG FUSEKI_JAR=jena-fuseki-server-${JENA_VERSION}.jar
+ARG FUSEKI_JAR=fuseki-server.jar
 
 ENV JENA_HOME /jena
 ENV JENA_BIN $JENA_HOME/bin
@@ -46,7 +46,17 @@ RUN wget -O jena.tar.gz $MIRROR/jena/binaries/apache-jena-$JENA_VERSION.tar.gz |
     rm -rf apache-jena* && \
     rm jena.tar.gz*
 
+## Default environment variables.
+ENV \
+    JAVA_OPTIONS="-Xmx2048m -Xms2048m"  \
+    FUSEKI_JAR="${FUSEKI_JAR}"          \
+    FUSEKI_HOME="${FUSEKI_HOME}"          \
+    JENA_HOME="${JENA_HOME}"
+
 WORKDIR $FUSEKI_HOME
-# Load indexer config
-#ADD ./fuseki/config.ttl .
-#RUN "$JAVA_HOME/bin/java" -cp "${FUSEKI_HOME}/${FUSEKI_JAR}" jena.textindexer --desc config.ttl
+ADD ./fuseki/entrypoint.sh .
+RUN chmod a+x entrypoint.sh
+
+EXPOSE 3030
+
+ENTRYPOINT ["./entrypoint.sh" ]
