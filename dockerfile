@@ -9,9 +9,6 @@ ENV JENA_VERSION 6.2.0
 ENV MIRROR https://dlcdn.apache.org
 ENV ARCHIVE http://archive.apache.org/dist
 
-# Config and data
-ENV FUSEKI_BASE /fuseki-base
-
 # Fuseki installation
 ENV FUSEKI_HOME /jena-fuseki
 ARG FUSEKI_JAR=jena-fuseki-server-${JENA_VERSION}.jar
