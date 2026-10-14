@@ -52,7 +52,7 @@ WORKDIR $FUSEKI_HOME
 
 # Load indexer config
 #ADD ./files/config.ttl .
-COPY --from=files-folder . .
+COPY --from=config-folder . .
 RUN "$JAVA_HOME/bin/java" -cp "${FUSEKI_HOME}/${FUSEKI_JAR}" jena.textindexer --desc config.ttl
 
 #Load data
