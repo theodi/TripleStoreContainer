@@ -31,7 +31,7 @@ RUN wget -O fuseki.tar.gz $MIRROR/jena/binaries/apache-jena-fuseki-$FUSEKI_VERSI
     rm fuseki.tar.gz* && \
     cd $FUSEKI_HOME && rm -rf fuseki.war
 
-# Get tdb1.xloader and tdb2.xloader from Jena
+# Get tdb2.tdbloader from Jena
 # sha512 checksum
 RUN echo "$JENA_SHA512  jena.tar.gz" > jena.tar.gz.sha512
 # Download/check/unpack/move Jena in one go (to reduce image size)
