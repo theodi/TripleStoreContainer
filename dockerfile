@@ -51,7 +51,8 @@ RUN wget -O jena.tar.gz $MIRROR/jena/binaries/apache-jena-$JENA_VERSION.tar.gz |
 WORKDIR $FUSEKI_HOME
 
 # Load indexer config
-ADD ./fuseki/config.ttl .
+#ADD ./files/config.ttl .
+COPY --from=files-folder . .
 RUN "$JAVA_HOME/bin/java" -cp "${FUSEKI_HOME}/${FUSEKI_JAR}" jena.textindexer --desc config.ttl
 
 #Load data
