@@ -31,9 +31,6 @@ RUN wget -O fuseki.tar.gz $MIRROR/jena/binaries/apache-jena-fuseki-$FUSEKI_VERSI
     rm fuseki.tar.gz* && \
     cd $FUSEKI_HOME && rm -rf fuseki.war
 
-# jq needed for tdb2.xloader
-RUN apk add --update bash ca-certificates coreutils findutils jq pwgen ruby wget && rm -rf /var/cache/apk/*
-
 # Get tdb1.xloader and tdb2.xloader from Jena
 # sha512 checksum
 RUN echo "$JENA_SHA512  jena.tar.gz" > jena.tar.gz.sha512
@@ -51,7 +48,6 @@ RUN wget -O jena.tar.gz $MIRROR/jena/binaries/apache-jena-$JENA_VERSION.tar.gz |
 WORKDIR $FUSEKI_HOME
 
 # Load indexer config
-#ADD ./files/config.ttl .
 COPY --from=config-folder . .
 RUN "$JAVA_HOME/bin/java" -cp "${FUSEKI_HOME}/${FUSEKI_JAR}" jena.textindexer --desc config.ttl
 
