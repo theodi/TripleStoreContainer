@@ -44,12 +44,26 @@ RUN wget -O jena.tar.gz $MIRROR/jena/binaries/apache-jena-$JENA_VERSION.tar.gz |
     tar zxf jena.tar.gz && \
     mkdir -p $JENA_BIN && \
     mv apache-jena*/lib $JENA_HOME && \
-    mv apache-jena*/bin/tdb1.xloader apache-jena*/bin/xload-* $JENA_BIN && \
-    mv apache-jena*/bin/tdb2.xloader $JENA_BIN && \
+    #mv apache-jena*/bin/tdb1.xloader apache-jena*/bin/xload-* $JENA_BIN && \
+    mv apache-jena*/bin/tdb2.tdbloader $JENA_BIN && \
     rm -rf apache-jena* && \
     rm jena.tar.gz*
 
 WORKDIR $FUSEKI_HOME
+
+# Load indexer config
+ADD ./fuseki/config.ttl .
+RUN "$JAVA_HOME/bin/java" -cp "${FUSEKI_HOME}/${FUSEKI_JAR}" jena.textindexer --desc config.ttl
+
+#Load data
+ARG DATABASE=./db
+
+#RUN mkdir -p $DATABASE
+ADD ./data/*.ttl ./data/
+#COPY --from=data-folder . /data/
+
+RUN for file in ./data/*.ttl; do $JENA_HOME/bin/tdb2.tdbloader --loc $DATABASE "$file"; done
+
 ADD ./fuseki/entrypoint.sh .
 RUN chmod a+x entrypoint.sh
 
