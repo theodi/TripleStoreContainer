@@ -51,12 +51,12 @@ RUN JDEPS="$(jdeps --multi-release base --print-module-deps --ignore-missing-dep
         --add-modules "${JDEPS},${JDEPS_EXTRA}"
 
 
-## ---- Stage: Default build context value for config-folder
-FROM scratch AS config-folder
+## ---- Stage: Default build context value for the config folder
+FROM scratch AS config
 COPY store/config/ /
 
-## ---- Stage: Default build context value for data-folder
-FROM scratch AS data-folder
+## ---- Stage: Default build context value for the data folder
+FROM scratch AS data
 COPY store/data/ /
 
 
@@ -73,12 +73,12 @@ ENV JAVA_HOME=${JAVA_MINIMAL}
 WORKDIR ${FUSEKI_DIR}
 
 # Load data
-COPY --from=data-folder . ./data/
+COPY --from=data . ./data/
 RUN "$JAVA_HOME/bin/java" --add-modules jdk.incubator.vector \
         -cp "${FUSEKI_DIR}/${FUSEKI_JAR}" \
         tdb2.tdbloader --loader=parallel --loc "$DATABASE" ./data/*
 
-COPY --from=config-folder ./config.ttl .
+COPY --from=config ./config.ttl .
 
 RUN "$JAVA_HOME/bin/java" --add-modules jdk.incubator.vector \
         -cp "${FUSEKI_DIR}/${FUSEKI_JAR}" \
@@ -108,10 +108,10 @@ RUN addgroup -g "${JENA_GID}" "${JENA_GROUP}" && \
 # JRE, JAR and config stay root-owned (read-only for the service user).
 COPY --link --from=jre ${JAVA_MINIMAL} ${JAVA_MINIMAL}
 COPY --link --from=fuseki-download ${FUSEKI_DIR}/${FUSEKI_JAR} ./
-COPY --link --from=config-folder ./log4j2.properties .
+COPY --link --from=config ./log4j2.properties .
 COPY --link --from=loader --chown=${JENA_UID}:${JENA_GID} ${FUSEKI_DIR}/db/ ./db/
 COPY --link --from=loader --chown=${JENA_UID}:${JENA_GID} ${FUSEKI_DIR}/fts-index/ ./fts-index/
-COPY --link --from=config-folder ./config.ttl .
+COPY --link --from=config ./config.ttl .
 
 USER ${JENA_USER}
 
