@@ -6,11 +6,11 @@ A containerised Fuseki configurable and loaded with data.
 
 Build parameters:
 
-- `config-folder`: Fuseki config and log4j2 properties (defaults to `store/config`);
-- `data-folder`: Location of the `.ttl` files to load (defaults to `store/data`).
+- `config`: Fuseki config and log4j2 properties (defaults to `store/config`);
+- `data`: Location of the `.ttl` files to load (defaults to `store/data`).
 
 ```sh
-docker build --build-context config-folder=store/config --build-context data-folder=store/data --tag triple-store-container .
+docker build --build-context config=store/config --build-context data=store/data --tag triple-store-container .
 ```
 
 
