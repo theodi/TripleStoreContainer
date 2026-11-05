@@ -3,6 +3,8 @@ PREFIX schema: <https://ns.volunteeringdata.io/>
 PREFIX ja: <http://jena.hpl.hp.com/2005/11/Assembler#>
 PREFIX tdb2: <http://jena.apache.org/2016/tdb#>
 PREFIX text: <http://jena.apache.org/text#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX dc: <http://purl.org/dc/terms/>
 
 [
     a :Service ;
@@ -65,28 +67,15 @@ PREFIX text: <http://jena.apache.org/text#>
     ] ;
 ] .
 
-# This must be a URI node for some reason.
+
+# Properties indexed for full-text search
 <entityMap>
     a text:EntityMap ;
     text:entityField "uri" ;
-    text:defaultField "activityTitle" ;
-    text:uidField "uid" ;
+    text:defaultField "text" ;
     text:map (
-        [
-            text:field "activityTitle" ;
-            text:predicate schema:activityTitle ;
-        ]
-        [
-            text:field "activityDescription" ;
-            text:predicate schema:activityDescription ;
-        ]
-        [
-            text:field "organisationName" ;
-            text:predicate schema:organisationName ;
-        ]
-        [
-            text:field "organisationDescription" ;
-            text:predicate schema:organisationDescription ;
-        ]
-    ) ;
-.
+        [ text:field "text" ; text:predicate rdfs:label ]
+        [ text:field "text" ; text:predicate rdfs:comment ]
+        [ text:field "text" ; text:predicate dc:title ]
+        [ text:field "text" ; text:predicate dc:description ]
+    ) .
