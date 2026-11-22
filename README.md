@@ -7,7 +7,7 @@ A containerised Fuseki configurable and loaded with data.
 Build parameters:
 
 - `config`: Fuseki config and log4j2 properties (defaults to `config`);
-- `data`: Location of the `.ttl` files to load (defaults to `data`).
+- `data`: Location of the RDF files to load, searched recursively (defaults to `data`). Files ending in `.ttl`, `.nt`, `.nq`, `.trig`, `.rdf`, `.owl` or `.jsonld`, optionally gzipped, are loaded; anything else is ignored.
 
 ```sh
 docker build --file Containerfile --tag triple-store-container .

@@ -53,11 +53,22 @@ WORKDIR ${FUSEKI_DIR}
 
 COPY --from=fuseki-download ${FUSEKI_DIR}/${FUSEKI_JAR} ./
 
-# Load data
+# Load all RDF file from data including subfolders and gzipped;
+# Skip other files (READMEs, .DS_Store...);
+# Fail the build rather than producing an empty store.
 COPY --from=data . ./data/
-RUN "$JAVA_HOME/bin/java" --add-modules jdk.incubator.vector \
+RUN set -eu; \
+    rdf_files() { \
+        find ./data -type f -regextype posix-extended \
+            -iregex '.*\.(ttl|nt|nq|trig|rdf|owl|jsonld)(\.gz)?' "$@"; \
+    }; \
+    if [ -z "$(rdf_files -print -quit)" ]; then \
+        echo "No RDF files found in the data build context" >&2; \
+        exit 1; \
+    fi; \
+    rdf_files -exec "$JAVA_HOME/bin/java" --add-modules jdk.incubator.vector \
         -cp "${FUSEKI_DIR}/${FUSEKI_JAR}" \
-        tdb2.tdbloader --loader=parallel --loc "$DATABASE" ./data/*
+        tdb2.tdbloader --loader=parallel --loc "$DATABASE" {} +
 
 COPY --from=config ./config.ttl .
 
