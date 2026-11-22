@@ -1,0 +1,4 @@
+# Send only what the Containerfile uses: config and data. Docker and Podman both read this file.
+*
+!config/
+!data/

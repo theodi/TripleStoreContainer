@@ -35,11 +35,11 @@ RUN echo "${FUSEKI_SHA1}  ${FUSEKI_JAR}" | sha1sum -c -
 
 ## ---- Stage: Default build context value for the config folder
 FROM scratch AS config
-COPY store/config/ /
+COPY config/ /
 
 ## ---- Stage: Default build context value for the data folder
 FROM scratch AS data
-COPY store/data/ /
+COPY data/ /
 
 
 ## ---- Stage: load data and build text index
