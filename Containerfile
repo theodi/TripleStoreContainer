@@ -95,9 +95,7 @@ WORKDIR ${FUSEKI_DIR}
 RUN if id -u ubuntu >/dev/null 2>&1; then userdel ubuntu; fi && \
     if getent group ubuntu >/dev/null; then groupdel ubuntu; fi && \
     groupadd -g "${JENA_GID}" "${JENA_GROUP}" && \
-    useradd -u "${JENA_UID}" -g "${JENA_GROUP}" -s /usr/sbin/nologin -M "${JENA_USER}" && \
-    mkdir -p run && \
-    chown "${JENA_USER}:${JENA_GROUP}" run
+    useradd -u "${JENA_UID}" -g "${JENA_GROUP}" -s /usr/sbin/nologin -M "${JENA_USER}"
 
 # JAR and config stay root-owned (read-only for the service user).
 COPY --link --from=fuseki-download ${FUSEKI_DIR}/${FUSEKI_JAR} ./
@@ -118,6 +116,8 @@ ENV \
 
 EXPOSE 3030
 
-ENTRYPOINT ["/bin/sh", "-c", "exec \"$JAVA_HOME/bin/java\" $JAVA_OPTIONS -jar \"$FUSEKI_DIR/$FUSEKI_JAR\" \"$@\"", "--"]
+# FusekiBasicCmd serves only the endpoints in config.ttl.
+# No UI, admin, /$/ping or /$/metrics, and nothing written to disk at runtime.
+ENTRYPOINT ["/bin/sh", "-c", "exec \"$JAVA_HOME/bin/java\" $JAVA_OPTIONS -cp \"$FUSEKI_DIR/$FUSEKI_JAR\" org.apache.jena.fuseki.main.cmds.FusekiBasicCmd \"$@\"", "--"]
 
 CMD ["--conf", "./config.ttl"]
