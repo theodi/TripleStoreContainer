@@ -6,7 +6,7 @@ A containerised Fuseki configurable and loaded with data.
 
 Build parameters:
 
-- `config`: Fuseki config and log4j2 properties (defaults to `config`);
+- `config`: Fuseki config, log4j2 properties and the optional `inference.ttl` (defaults to `config`). When `inference.ttl` is present, the data is run through its reasoner at build time and the inferred triples are stored with it, so queries don't pay for reasoning. Without it, the data is served as loaded;
 - `data`: Location of the RDF files to load, searched recursively (defaults to `data`). Files ending in `.ttl`, `.nt`, `.nq`, `.trig`, `.rdf`, `.owl` or `.jsonld`, optionally gzipped, are loaded; anything else is ignored.
 
 ```sh

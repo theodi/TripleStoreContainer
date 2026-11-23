@@ -47,22 +47,11 @@ PREFIX dc: <http://purl.org/dc/terms/>
             text:entityMap <entityMap> ;
         ] ;
 
-        # The underlying dataset
+        # The underlying dataset, with inferred triples already added at build
+        # time (see inference.ttl)
         text:dataset [
-            a ja:RDFDataset ;
-
-            ja:defaultGraph [
-                # OWL micro inferencing
-                a ja:InfModel;
-                ja:reasoner [
-                    ja:reasonerURL <http://jena.hpl.hp.com/2003/OWLMicroFBRuleReasoner>
-                ] ;
-
-                ja:baseModel [
-                    a tdb2:GraphTDB2 ;
-                    tdb2:location "./db" ;
-                ] ;
-            ] ;
+            a tdb2:DatasetTDB2 ;
+            tdb2:location "./db" ;
         ] ;
     ] ;
 ] .

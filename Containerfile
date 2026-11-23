@@ -42,12 +42,11 @@ FROM scratch AS data
 COPY data/ /
 
 
-## ---- Stage: load data and build text index
+## ---- Stage: load data, apply inference, build text index
 FROM jre AS loader
 
 ARG FUSEKI_DIR
 ARG FUSEKI_JAR
-ARG DATABASE=./db
 
 WORKDIR ${FUSEKI_DIR}
 
@@ -68,13 +67,28 @@ RUN set -eu; \
     fi; \
     rdf_files -exec "$JAVA_HOME/bin/java" --add-modules jdk.incubator.vector \
         -cp "${FUSEKI_DIR}/${FUSEKI_JAR}" \
-        tdb2.tdbloader --loader=parallel --loc "$DATABASE" {} +
+        tdb2.tdbloader --loader=parallel --loc ./raw-db {} +
 
-COPY --from=config ./config.ttl .
+# Inference: if inference.ttl exists run loaded data through its reasoner
+# store the result so queries don't pay for reasoning
+COPY --from=config . ./config/
+RUN set -eu; \
+    jena() { \
+        "$JAVA_HOME/bin/java" --add-modules jdk.incubator.vector \
+            -cp "${FUSEKI_DIR}/${FUSEKI_JAR}" "$@"; \
+    }; \
+    if [ -f config/inference.ttl ]; then \
+        jena arq.sparql --desc config/inference.ttl --results=turtle \
+            'CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o }' > inferred.ttl; \
+        jena tdb2.tdbloader --loader=parallel --loc ./db inferred.ttl; \
+        rm -r inferred.ttl raw-db; \
+    else \
+        mv raw-db db; \
+    fi
 
 RUN "$JAVA_HOME/bin/java" --add-modules jdk.incubator.vector \
         -cp "${FUSEKI_DIR}/${FUSEKI_JAR}" \
-        jena.textindexer --desc config.ttl
+        jena.textindexer --desc config/config.ttl
 
 
 ## ---- Stage: runtime
