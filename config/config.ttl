@@ -17,7 +17,14 @@ PREFIX dc: <http://purl.org/dc/terms/>
         :operation :query ;
 
         # The path prefix for this endpoint
-        :name "sparql"
+        :name "sparql" ;
+
+        # Cancel queries running longer than 20 seconds (in milliseconds).
+        # Fuseki applies this on an endpoint or the server, not on a service.
+        ja:context [
+            ja:cxtName "arq:queryTimeout" ;
+            ja:cxtValue "20000"
+        ]
     ] ;
 
     :endpoint [
