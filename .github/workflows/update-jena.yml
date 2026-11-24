@@ -1,0 +1,83 @@
+name: Check for Jena updates
+
+on:
+  schedule:
+    - cron: "44 4 * * 0" # Sundays 04:44 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write # Push the update branch
+  pull-requests: write # Open the pull request
+
+concurrency:
+  group: update-jena
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    env:
+      BRANCH: automation/update-jena
+      MAVEN_BASE: https://repo1.maven.org/maven2/org/apache/jena/jena-fuseki-server
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Look up versions
+        id: versions
+        run: |
+          set -euo pipefail
+          # Latest release of jena-fuseki-server on Maven Central
+          latest=$(curl -fsSL "$MAVEN_BASE/maven-metadata.xml" \
+            | sed -n 's:.*<release>\(.*\)</release>.*:\1:p')
+          [ -n "$latest" ] || { echo "Could not determine latest Jena version"; exit 1; }
+          current=$(sed -n 's/^ARG JENA_VERSION=//p' Containerfile)
+          [ -n "$current" ] || { echo "Could not read JENA_VERSION from Containerfile"; exit 1; }
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+
+      - name: Update Jena version and checksum
+        if: steps.versions.outputs.latest != steps.versions.outputs.current
+        env:
+          JENA: ${{ steps.versions.outputs.latest }}
+        run: |
+          set -euo pipefail
+          jar_url="$MAVEN_BASE/$JENA/jena-fuseki-server-$JENA.jar"
+          # Compute the SHA-1 from the JAR itself and cross-check it against
+          # the checksum Maven Central publishes alongside it.
+          computed=$(curl -fsSL "$jar_url" | sha1sum | cut -d' ' -f1)
+          published=$(curl -fsSL "$jar_url.sha1" | cut -d' ' -f1)
+          if [ "$computed" != "$published" ]; then
+            echo "SHA-1 mismatch for $jar_url: computed $computed, published $published"
+            exit 1
+          fi
+          sed -i \
+            -e "s/^ARG JENA_VERSION=.*/ARG JENA_VERSION=$JENA/" \
+            -e "s/^ARG FUSEKI_SHA1=.*/ARG FUSEKI_SHA1=$computed/" \
+            Containerfile
+
+      - name: Open or update pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CURRENT: ${{ steps.versions.outputs.current }}
+          LATEST: ${{ steps.versions.outputs.latest }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- Containerfile; then
+            echo "Containerfile is up to date."
+            exit 0
+          fi
+          title="Bump Jena $CURRENT → $LATEST"
+          body="- Jena $CURRENT → $LATEST"
+          body+=$'\n\nThe Fuseki JAR checksum was computed from the download and checked against the `.sha1` published on Maven Central.'
+          git config user.name "github-actions[bot]"
+          git config user.email "41898273+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$BRANCH"
+          git commit -am "$title"
+          git push --force origin "$BRANCH"
+          if [ -n "$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')" ]; then
+            gh pr edit "$BRANCH" --title "$title" --body "$body"
+          else
+            gh pr create --head "$BRANCH" --base "$DEFAULT_BRANCH" --title "$title" --body "$body"
+          fi
