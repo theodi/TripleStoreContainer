@@ -47,7 +47,7 @@ PREFIX dc: <http://purl.org/dc/terms/>
         ] ;
 
         # The underlying dataset, with inferred triples already added at build
-        # time (see inference.ttl)
+        # time (see inference.ru)
         text:dataset [
             a tdb2:DatasetTDB2 ;
             tdb2:location "./db" ;

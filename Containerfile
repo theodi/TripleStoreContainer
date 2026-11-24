@@ -67,23 +67,28 @@ RUN set -eu; \
     fi; \
     rdf_files -exec "$JAVA_HOME/bin/java" --add-modules jdk.incubator.vector \
         -cp "${FUSEKI_DIR}/${FUSEKI_JAR}" \
-        tdb2.tdbloader --loader=parallel --loc ./raw-db {} +
+        tdb2.tdbloader --loader=parallel --loc ./db {} +
 
-# Inference: if inference.ttl exists run loaded data through its reasoner
-# store the result so queries don't pay for reasoning
+# Inference: if inference.ru exists, run its rules against the on-disk store
+# until they add nothing, so queries don't pay for reasoning.
 COPY --from=config . ./config/
 RUN set -eu; \
     jena() { \
         "$JAVA_HOME/bin/java" --add-modules jdk.incubator.vector \
             -cp "${FUSEKI_DIR}/${FUSEKI_JAR}" "$@"; \
     }; \
-    if [ -f config/inference.ttl ]; then \
-        jena arq.sparql --desc config/inference.ttl --results=turtle \
-            'CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o }' > inferred.ttl; \
-        jena tdb2.tdbloader --loader=parallel --loc ./db inferred.ttl; \
-        rm -r inferred.ttl raw-db; \
-    else \
-        mv raw-db db; \
+    count() { \
+        jena tdb2.tdbquery --loc ./db --results=tsv \
+            'SELECT (COUNT(*) AS ?n) WHERE { ?s ?p ?o }' | tail -n 1; \
+    }; \
+    if [ -f config/inference.ru ]; then \
+        before=; after=$(count); \
+        while [ "$after" != "$before" ]; do \
+            before=$after; \
+            jena tdb2.tdbupdate --loc ./db --update config/inference.ru; \
+            after=$(count); \
+            echo "Inference: ${before} -> ${after} triples"; \
+        done; \
     fi
 
 RUN "$JAVA_HOME/bin/java" --add-modules jdk.incubator.vector \
