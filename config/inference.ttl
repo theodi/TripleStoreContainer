@@ -1,0 +1,27 @@
+PREFIX ja: <http://jena.hpl.hp.com/2005/11/Assembler#>
+PREFIX tdb2: <http://jena.apache.org/2016/tdb#>
+
+# Build-time inference.
+# The loader reads every triple of the default graph through this reasoner and
+# stores the result, so the server answers from precomputed triples.
+# Named graphs are stored as loaded, without inference.
+# Remove this file to load the data as is, without inference.
+
+[
+    a ja:RDFDataset ;
+
+    ja:defaultGraph [
+        # OWL Micro inferencing
+        # See https://jena.apache.org/documentation/inference/#OWLcoverage
+        a ja:InfModel ;
+        ja:reasoner [
+            ja:reasonerURL <http://jena.hpl.hp.com/2003/OWLMicroFBRuleReasoner>
+        ] ;
+
+        # The default graph as loaded, before inference
+        ja:baseModel [
+            a tdb2:GraphTDB2 ;
+            tdb2:location "./raw-db" ;
+        ] ;
+    ] ;
+] .

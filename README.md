@@ -6,7 +6,7 @@ A containerised Fuseki configurable and loaded with data.
 
 Build parameters:
 
-- `config`: Fuseki config, log4j2 properties and the optional `inference.ru` (defaults to `config`). When `inference.ru` is present, its SPARQL Update rules run against the loaded data at build time until they add no new triples, so queries don't pay for reasoning. The rules work on disk, so memory use doesn't grow with the data. They apply to the default graph and cover `rdfs:subClassOf`, `rdfs:subPropertyOf`, `rdfs:domain`, `rdfs:range`, `owl:equivalentClass`, `owl:equivalentProperty`, `owl:inverseOf`, `owl:SymmetricProperty` and `owl:TransitiveProperty`; add rules to the file for anything else. Without it, the data is served as loaded;
+- `config`: Fuseki config, log4j2 properties and the optional `inference.ttl` (defaults to `config`). When `inference.ttl` is present, the default graph is run through its reasoner ([OWL Micro](https://jena.apache.org/documentation/inference/#OWLcoverage) by default) at build time and the inferred triples are stored with it, so queries don't pay for reasoning. Named graphs are stored as loaded, without inference. Without it, the data is served as loaded;
 - `data`: Location of the RDF files to load, searched recursively (defaults to `data`). Files ending in `.ttl`, `.nt`, `.nq`, `.trig`, `.rdf`, `.owl` or `.jsonld`, optionally gzipped, are loaded; anything else is ignored.
 
 ```sh
@@ -17,6 +17,12 @@ To use other folders, pass them as build contexts:
 
 ```sh
 docker build --file Containerfile --build-context config=path/to/config --build-context data=path/to/data --tag triple-store-container .
+```
+
+The reasoner holds its inferences in memory and gets 75% of the build container's memory by default. To set its heap explicitly, pass JVM options as a build argument:
+
+```sh
+docker build --file Containerfile --build-arg INFERENCE_JAVA_OPTIONS=-Xmx8g --tag triple-store-container .
 ```
 
 Podman finds the `Containerfile` without `--file` and accepts the same options.

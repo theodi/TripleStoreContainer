@@ -47,6 +47,8 @@ FROM jre AS loader
 
 ARG FUSEKI_DIR
 ARG FUSEKI_JAR
+# Reasoner JVM options. Inferences are held in memory, so give most of the build container's memory rather than the JVM default of 25%.
+ARG INFERENCE_JAVA_OPTIONS="-XX:MaxRAMPercentage=75"
 
 WORKDIR ${FUSEKI_DIR}
 
@@ -67,28 +69,31 @@ RUN set -eu; \
     fi; \
     rdf_files -exec "$JAVA_HOME/bin/java" --add-modules jdk.incubator.vector \
         -cp "${FUSEKI_DIR}/${FUSEKI_JAR}" \
-        tdb2.tdbloader --loader=parallel --loc ./db {} +
+        tdb2.tdbloader --loader=parallel --loc ./raw-db {} +
 
-# Inference: if inference.ru exists, run its rules against the on-disk store
-# until they add nothing, so queries don't pay for reasoning.
+# Inference: if inference.ttl exists, read the default graph through its reasoner and load the result into a fresh store, so queries don't pay for reasoning. Named graphs are copied as loaded, without inference.
+# SELECT streams its rows (CONSTRUCT would build the whole result in memory).
+# TSV rows are Turtle terms separated by tabs, and tabs inside literals are escaped: drop the header, then end each row with " ." (default graph) or wrap it as "<graph> { s p o . }" (TriG).
 COPY --from=config . ./config/
 RUN set -eu; \
     jena() { \
         "$JAVA_HOME/bin/java" --add-modules jdk.incubator.vector \
             -cp "${FUSEKI_DIR}/${FUSEKI_JAR}" "$@"; \
     }; \
-    count() { \
-        jena tdb2.tdbquery --loc ./db --results=tsv \
-            'SELECT (COUNT(*) AS ?n) WHERE { ?s ?p ?o }' | tail -n 1; \
-    }; \
-    if [ -f config/inference.ru ]; then \
-        before=; after=$(count); \
-        while [ "$after" != "$before" ]; do \
-            before=$after; \
-            jena tdb2.tdbupdate --loc ./db --update config/inference.ru; \
-            after=$(count); \
-            echo "Inference: ${before} -> ${after} triples"; \
-        done; \
+    if [ -f config/inference.ttl ]; then \
+        jena ${INFERENCE_JAVA_OPTIONS} -XX:+ExitOnOutOfMemoryError \
+            arq.sparql --desc config/inference.ttl --results=tsv \
+            'SELECT ?s ?p ?o WHERE { ?s ?p ?o }' > default.tsv; \
+        sed -i '1d; s/$/ ./' default.tsv; \
+        mv default.tsv default.ttl; \
+        jena tdb2.tdbquery --loc ./raw-db --results=tsv \
+            'SELECT ?s ?p ?o ?g WHERE { GRAPH ?g { ?s ?p ?o } }' > named.tsv; \
+        sed -i '1d; s/^\(.*\)\t\([^\t]*\)$/\2 { \1 . }/' named.tsv; \
+        mv named.tsv named.trig; \
+        jena tdb2.tdbloader --loader=parallel --loc ./db default.ttl named.trig; \
+        rm -r default.ttl named.trig raw-db; \
+    else \
+        mv raw-db db; \
     fi
 
 RUN "$JAVA_HOME/bin/java" --add-modules jdk.incubator.vector \
