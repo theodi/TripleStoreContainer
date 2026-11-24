@@ -1,8 +1,9 @@
-# Volunteering vocabulary
+# Example vocabulary
 
 ## Namespaces
 ### Ontology Base URI
 prefix :                <https://example.org/ns/>
+prefix id:              <https://example.org/id/>
 
 ### Core W3C ontologies (OWL 2 reserved vocabulary)
 prefix rdf:             <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
@@ -10,27 +11,18 @@ prefix rdfs:            <http://www.w3.org/2000/01/rdf-schema#>
 prefix owl:             <http://www.w3.org/2002/07/owl#>
 prefix xsd:             <http://www.w3.org/2001/XMLSchema#>
 
-### Other namespaces used
-prefix dc:              <http://purl.org/dc/terms/>
-prefix geo:             <http://www.w3.org/2003/01/geo/wgs84_pos#>
-prefix geosparql:       <http://www.opengis.net/ont/geosparql#>
-prefix og:              <http://ogp.me/ns#>
-prefix skos:            <http://www.w3.org/2004/02/skos/core#>
-prefix spdx:            <http://spdx.org/rdf/terms#>
-prefix time:            <http://www.w3.org/2006/time#>
-prefix vcard:           <http://www.w3.org/2006/vcard/ns#>
-prefix vann:            <http://purl.org/vocab/vann/>
-
 
 ### Object Properties
 :ancestor
     a owl:ObjectProperty, owl:TransitiveProperty ;
+    rdfs:isDefinedBy : ;
     owl:inverseOf :descendant ;
     rdfs:label "has ancestor"@en ;
 .
 
 :child
     a owl:ObjectProperty ;
+    rdfs:isDefinedBy : ;
     rdfs:subPropertyOf :descendant ;
     rdfs:domain :Parent ;
     rdfs:range :Child ;
@@ -39,12 +31,14 @@ prefix vann:            <http://purl.org/vocab/vann/>
 
 :descendant
     a owl:ObjectProperty, owl:TransitiveProperty ;
+    rdfs:isDefinedBy : ;
     owl:inverseOf :ancestor ;
     rdfs:label "has descendant"@en ;
 .
 
 :parent
     a owl:ObjectProperty ;
+    rdfs:isDefinedBy : ;
     owl:inverseOf :child ;
     rdfs:subPropertyOf :ancestor ;
     rdfs:domain :Child ;
@@ -52,5 +46,5 @@ prefix vann:            <http://purl.org/vocab/vann/>
     rdfs:label "has parent"@en ;
 .
 
-<x> :child <y> .
-<y> :child <z> .
+id:x :child id:y .
+id:y :child id:z .
