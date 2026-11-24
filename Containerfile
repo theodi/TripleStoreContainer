@@ -54,6 +54,11 @@ WORKDIR ${FUSEKI_DIR}
 
 COPY --from=fuseki-download ${FUSEKI_DIR}/${FUSEKI_JAR} ./
 
+# jena [JVM options] <command> [arguments]: run a Jena command from the Fuseki JAR.
+RUN printf '#!/bin/sh\nexec "$JAVA_HOME/bin/java" --add-modules jdk.incubator.vector -cp "%s" "$@"\n' \
+        "${FUSEKI_DIR}/${FUSEKI_JAR}" > /usr/local/bin/jena && \
+    chmod 755 /usr/local/bin/jena
+
 # Load all RDF file from data including subfolders and gzipped;
 # Skip other files (READMEs, .DS_Store...);
 # Fail the build rather than producing an empty store.
@@ -67,19 +72,13 @@ RUN set -eu; \
         echo "No RDF files found in the data build context" >&2; \
         exit 1; \
     fi; \
-    rdf_files -exec "$JAVA_HOME/bin/java" --add-modules jdk.incubator.vector \
-        -cp "${FUSEKI_DIR}/${FUSEKI_JAR}" \
-        tdb2.tdbloader --loader=parallel --loc ./raw-db {} +
+    rdf_files -exec jena tdb2.tdbloader --loader=parallel --loc ./raw-db {} +
 
 # Inference: if inference.ttl exists, read the default graph through its reasoner and load the result into a fresh store, so queries don't pay for reasoning. Named graphs are copied as loaded, without inference.
 # SELECT streams its rows (CONSTRUCT would build the whole result in memory).
 # TSV rows are Turtle terms separated by tabs, and tabs inside literals are escaped: drop the header, then end each row with " ." (default graph) or wrap it as "<graph> { s p o . }" (TriG).
 COPY --from=config . ./config/
 RUN set -eu; \
-    jena() { \
-        "$JAVA_HOME/bin/java" --add-modules jdk.incubator.vector \
-            -cp "${FUSEKI_DIR}/${FUSEKI_JAR}" "$@"; \
-    }; \
     if [ -f config/inference.ttl ]; then \
         jena ${INFERENCE_JAVA_OPTIONS} -XX:+ExitOnOutOfMemoryError \
             arq.sparql --desc config/inference.ttl --results=tsv \
@@ -96,9 +95,7 @@ RUN set -eu; \
         mv raw-db db; \
     fi
 
-RUN "$JAVA_HOME/bin/java" --add-modules jdk.incubator.vector \
-        -cp "${FUSEKI_DIR}/${FUSEKI_JAR}" \
-        jena.textindexer --desc config/config.ttl
+RUN jena jena.textindexer --desc config/config.ttl
 
 
 ## ---- Stage: runtime
