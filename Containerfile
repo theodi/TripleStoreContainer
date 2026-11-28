@@ -10,12 +10,17 @@ ARG FUSEKI_DIR=/fuseki
 ARG FUSEKI_JAR=jena-fuseki-server-${JENA_VERSION}.jar
 
 
-## ---- Stage: Java runtime (Temurin JRE on Ubuntu)
+# Multi-platform builds: stages based on build-jre run once, natively, on the build machine, since their output (JAR, TDB2 database, Lucene index) is the same on every platform. Only the final image is built for each target platform.
+
+## ---- Stage: Java runtime (Temurin JRE on Ubuntu), for the target platform
 FROM eclipse-temurin:${JAVA_VERSION}-jre-${UBUNTU_CODENAME} AS jre
+
+## ---- Stage: Java runtime, for the build platform
+FROM --platform=$BUILDPLATFORM eclipse-temurin:${JAVA_VERSION}-jre-${UBUNTU_CODENAME} AS build-jre
 
 
 ## ---- Stage: download Fuseki JAR
-FROM jre AS fuseki-download
+FROM build-jre AS fuseki-download
 
 ARG JENA_VERSION
 ARG FUSEKI_DIR
@@ -43,7 +48,7 @@ COPY data/ /
 
 
 ## ---- Stage: load data, apply inference, build text index
-FROM jre AS loader
+FROM build-jre AS loader
 
 ARG FUSEKI_DIR
 ARG FUSEKI_JAR

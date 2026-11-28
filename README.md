@@ -27,6 +27,18 @@ docker build --file Containerfile --build-arg INFERENCE_JAVA_OPTIONS=-Xmx8g --ta
 
 Podman finds the `Containerfile` without `--file` and accepts the same options.
 
+To build for several platforms, pass them with `--platform`. Data loading, inference and indexing run once, natively on the build machine, as their output is the same on every platform: only the final image is built for each platform. Docker needs a builder that supports multi-platform images (the containerd image store, or `docker buildx create`) and emulation for platforms other than the build machine's (QEMU, included in Docker Desktop):
+
+```sh
+docker build --file Containerfile --platform linux/amd64,linux/arm64 --tag triple-store-container .
+```
+
+Podman builds them into a manifest list:
+
+```sh
+podman build --platform linux/amd64,linux/arm64 --manifest triple-store-container .
+```
+
 
 ## Run container
 
@@ -41,3 +53,48 @@ The server is read-only and exposes only the endpoints defined in `config.ttl`: 
 Example requests:
 - [Get all statements](http://localhost:3030/sparql?query=CONSTRUCT%20%7B%20%3Fs%20%3Fp%20%3Fo%20%7D%20WHERE%20%7B%20%3Fs%20%3Fp%20%3Fo%20%7D) `CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o }`
 - [Get the vocabulary](http://localhost:3030/sparql?query=CONSTRUCT%20%7B%20%3Fs%20%3Fp%20%3Fo%20.%20%7D%20WHERE%20%7B%20%3Fs%20%3Fp%20%3Fo%20%3B%20%3Chttp%3A%2F%2Fwww.w3.org%2F2000%2F01%2Frdf-schema%23isDefinedBy%3E%20%3Chttps%3A%2F%2Fexample.org%2Fns%2F%3E%20.%20%7D) `CONSTRUCT { ?s ?p ?o . } WHERE { ?s ?p ?o ; <http://www.w3.org/2000/01/rdf-schema#isDefinedBy> <https://example.org/ns/> . }`
+
+
+## Publish image
+
+This repository doesn't publish images itself: its `data` folder is an example for local builds only. Other repositories publish their own triple store image by calling the reusable workflow `.github/workflows/publish.yml`. It loads the data of the public repositories listed in the calling repository, builds the image for `linux/amd64` and `linux/arm64` from the `Containerfile` at the version of the workflow called (`@main`, a tag or a commit SHA), and pushes it tagged `latest` and `sha-<commit>`.
+
+In the calling repository, `data-repositories.json` lists the repositories whose RDF files are loaded, at any depth, each with an optional `ref` (tag, branch or commit SHA; the default branch if omitted):
+
+```json
+[
+  {"repository": "theodi/ontology", "ref": "v1.0.0"},
+  {"repository": "theodi/data"}
+]
+```
+
+Changes to the data are made to this file, so they are reviewed in pull requests and published when merged. Pin a `ref` to publish a known version of a repository; without one, its latest default branch is loaded on each publish. The repositories are checked out in parallel, one job each, including files stored with Git LFS.
+
+A workflow calls the reusable one, e.g. `.github/workflows/publish.yml`:
+
+```yaml
+name: Publish triple store image
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  publish:
+    uses: theodi/TripleStoreContainer/.github/workflows/publish.yml@main
+    permissions:
+      actions: read # Find the version of the workflow called
+      contents: read # Check out the repositories
+      packages: write # Push to GitHub Container Registry
+```
+
+Inputs:
+
+- `image`: image name to push, without tag (defaults to `<registry>/<owner>/<repo>` of the calling repository, e.g. `ghcr.io/theodi/my-knowledge-graph`);
+- `repositories-file`: JSON file of the calling repository listing the data repositories (defaults to `data-repositories.json`);
+- `config-path`: folder of the calling repository to use as the config (`config.ttl`, `log4j2.properties` and the optional `inference.ttl`; defaults to this repository's `config`);
+- `registry`, `username` and the `registry-password` secret: registry to push to (defaults to `ghcr.io` with the calling workflow's `GITHUB_TOKEN`);
+- `platforms`: platforms to build for (defaults to `linux/amd64,linux/arm64`).
+
+To push to several registries, call the workflow once per registry.
