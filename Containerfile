@@ -10,7 +10,7 @@ ARG FUSEKI_DIR=/fuseki
 ARG FUSEKI_JAR=jena-fuseki-server-${JENA_VERSION}.jar
 
 
-# Multi-platform builds: stages based on build-jre run once, natively, on the build machine, since their output (JAR, TDB2 database, Lucene index) is the same on every platform. Only the final image is built for each target platform.
+# Multi-platform builds: stages based on build-jre run once, natively, on the build machine, since their output (JAR, TDB2 database, Lucene and spatial indexes) is the same on every platform. Only the final image is built for each target platform.
 
 ## ---- Stage: Java runtime (Temurin JRE on Ubuntu), for the target platform
 FROM eclipse-temurin:${JAVA_VERSION}-jre-${UBUNTU_CODENAME} AS jre
@@ -47,7 +47,7 @@ FROM scratch AS data
 COPY data/ /
 
 
-## ---- Stage: load data, apply inference, build text index
+## ---- Stage: load data, apply inference, build text and spatial indexes
 FROM build-jre AS loader
 
 ARG FUSEKI_DIR
@@ -100,7 +100,27 @@ RUN set -eu; \
         mv raw-db db; \
     fi
 
-RUN jena jena.textindexer --desc config/config.ttl
+# Build the spatial index. There is no command line tool for it: Jena builds it when it assembles the dataset and the index file in its config (spatial-indexing.ttl) doesn't exist yet, and saves it there.
+# The text indexer assembles the whole dataset, so it builds the spatial index too, if the config has one: create its folder first.
+RUN mkdir spatial-index && \
+    jena jena.textindexer --desc config/config.ttl
+
+# For configs without a text index, starting Fuseki builds the spatial index; it also checks the config starts.
+# Start Fuseki, wait until it listens (bash's /dev/tcp, as the image has no wget or curl), stop it and wait for it to exit so the store is closed.
+# Fuseki still listens when it skips a service it can't build, so fail on any error it logged.
+RUN bash -euc ' \
+        jena org.apache.jena.fuseki.main.cmds.FusekiBasicCmd \
+            --localhost --port 3031 --config config/config.ttl > fuseki-build.log 2>&1 & \
+        fuseki=$!; \
+        until (: > /dev/tcp/127.0.0.1/3031) 2> /dev/null; do \
+            kill -0 "$fuseki" 2> /dev/null || { cat fuseki-build.log; exit 1; }; \
+            sleep 1; \
+        done; \
+        kill "$fuseki"; \
+        wait "$fuseki" || true; \
+        cat fuseki-build.log; \
+        if grep -q " ERROR " fuseki-build.log; then exit 1; fi; \
+        rm fuseki-build.log'
 
 
 ## ---- Stage: runtime
@@ -128,7 +148,9 @@ COPY --link --from=fuseki-download ${FUSEKI_DIR}/${FUSEKI_JAR} ./
 COPY --link --from=config ./log4j2.properties .
 COPY --link --from=loader --chown=${JENA_UID}:${JENA_GID} ${FUSEKI_DIR}/db/ ./db/
 COPY --link --from=loader --chown=${JENA_UID}:${JENA_GID} ${FUSEKI_DIR}/fts-index/ ./fts-index/
-COPY --link --from=config ./config.ttl .
+COPY --link --from=loader --chown=${JENA_UID}:${JENA_GID} ${FUSEKI_DIR}/spatial-index/ ./spatial-index/
+# config.ttl and the files it imports (such as text-indexing.ttl and spatial-indexing.ttl)
+COPY --link --from=config ./*.ttl .
 
 USER ${JENA_USER}
 

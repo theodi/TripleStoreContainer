@@ -1,0 +1,27 @@
+PREFIX geosparql: <http://jena.apache.org/geosparql#>
+
+# GeoSPARQL and spatial search, imported by config.ttl
+# See https://jena.apache.org/documentation/geosparql/
+
+<urn:triple-store:spatial-dataset>
+    a geosparql:GeosparqlDataset ;
+
+    # The location on disk of the spatial index. Jena builds it when this file
+    # doesn't exist and saves it there; the image build does so, and the server
+    # then loads it. Keep it in ./spatial-index/, which the image build copies
+    # into the image.
+    geosparql:spatialIndexFile "./spatial-index/spatial.index" ;
+
+    # Spatial index and query rewriting (geo:hasGeometry and geo:asWKT are not
+    # needed in queries between features)
+    geosparql:indexEnabled true ;
+    geosparql:queryRewrite true ;
+
+    # Both add triples to the dataset each time the server starts: keep the
+    # store as built (see inference.ttl for build-time inference)
+    geosparql:inference false ;
+    geosparql:applyDefaultGeometry false ;
+
+    # The store (see config.ttl)
+    geosparql:dataset <urn:triple-store:store> ;
+.

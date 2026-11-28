@@ -1,9 +1,11 @@
 PREFIX : <http://jena.apache.org/fuseki#>
 PREFIX ja: <http://jena.hpl.hp.com/2005/11/Assembler#>
-PREFIX tdb2: <http://jena.apache.org/2016/tdb#>
 PREFIX text: <http://jena.apache.org/text#>
-PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-PREFIX dc: <http://purl.org/dc/terms/>
+PREFIX tdb2: <http://jena.apache.org/2016/tdb#>
+
+# Read the index configs too (resolved relative to this file)
+<> ja:imports <text-indexing.ttl> .
+<> ja:imports <spatial-indexing.ttl> .
 
 [
     a :Service ;
@@ -40,37 +42,21 @@ PREFIX dc: <http://purl.org/dc/terms/>
         # See https://jena.apache.org/documentation/query/text-query.html
         a text:TextDataset ;
 
+        # Text index (see text-indexing.ttl)
+        text:index <urn:triple-store:text-index> ;
 
-        # Text index
-        text:index [
-            a text:TextIndexLucene ;
-
-            text:storeValues true ;
-
-            # The location on disk where the index will be created by jena.textindexer
-            text:directory "./fts-index/" ;
-
-            text:entityMap <entityMap> ;
-        ] ;
-
-        # The underlying dataset, with inferred triples already added at build
-        # time (see inference.ttl)
-        text:dataset [
-            a tdb2:DatasetTDB2 ;
-            tdb2:location "./db" ;
-        ] ;
+        # The underlying dataset, with GeoSPARQL and spatial search (see
+        # spatial-indexing.ttl).
+        # To turn spatial indexing off, remove the import of
+        # spatial-indexing.ttl above and use the store directly:
+        # text:dataset <urn:triple-store:store> ;
+        text:dataset <urn:triple-store:spatial-dataset> ;
     ] ;
 ] .
 
 
-# Properties indexed for full-text search
-<entityMap>
-    a text:EntityMap ;
-    text:entityField "uri" ;
-    text:defaultField "text" ;
-    text:map (
-        [ text:field "text" ; text:predicate rdfs:label ]
-        [ text:field "text" ; text:predicate rdfs:comment ]
-        [ text:field "text" ; text:predicate dc:title ]
-        [ text:field "text" ; text:predicate dc:description ]
-    ) .
+# The store, with inferred triples already added at build time (see inference.ttl)
+<urn:triple-store:store>
+    a tdb2:DatasetTDB2 ;
+    tdb2:location "./db" ;
+.

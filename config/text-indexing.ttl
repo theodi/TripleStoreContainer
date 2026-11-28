@@ -1,0 +1,30 @@
+PREFIX text: <http://jena.apache.org/text#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX dc: <http://purl.org/dc/terms/>
+
+# Full-text search index, imported by config.ttl
+# See https://jena.apache.org/documentation/query/text-query.html
+
+<urn:triple-store:text-index>
+    a text:TextIndexLucene ;
+
+    text:storeValues true ;
+
+    # The location on disk where the index will be created by jena.textindexer
+    text:directory "./fts-index/" ;
+
+    text:entityMap <#entityMap> ;
+.
+
+
+# Properties indexed for full-text search
+<#entityMap>
+    a text:EntityMap ;
+    text:entityField "uri" ;
+    text:defaultField "text" ;
+    text:map (
+        [ text:field "text" ; text:predicate rdfs:label ]
+        [ text:field "text" ; text:predicate rdfs:comment ]
+        [ text:field "text" ; text:predicate dc:title ]
+        [ text:field "text" ; text:predicate dc:description ]
+    ) .

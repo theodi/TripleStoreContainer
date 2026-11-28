@@ -6,7 +6,7 @@ A containerised Fuseki configurable and loaded with data.
 
 Build parameters:
 
-- `config`: Fuseki config, log4j2 properties and the optional `inference.ttl` (defaults to `config`). When `inference.ttl` is present, the default graph is run through its reasoner ([OWL Micro](https://jena.apache.org/documentation/inference/#OWLcoverage) by default) at build time and the inferred triples are stored with it, so queries don't pay for reasoning. Named graphs are stored as loaded, without inference. Without it, the data is served as loaded;
+- `config`: Fuseki config (`config.ttl` and the files it imports, such as `text-indexing.ttl` for full-text search and `spatial-indexing.ttl` for GeoSPARQL), log4j2 properties and the optional `inference.ttl` (defaults to `config`). When `inference.ttl` is present, the default graph is run through its reasoner ([OWL Micro](https://jena.apache.org/documentation/inference/#OWLcoverage) by default) at build time and the inferred triples are stored with it, so queries don't pay for reasoning. Named graphs are stored as loaded, without inference. Without it, the data is served as loaded;
 - `data`: Location of the RDF files to load, searched recursively (defaults to `data`). Files ending in `.ttl`, `.nt`, `.nq`, `.trig`, `.rdf`, `.owl` or `.jsonld`, optionally gzipped, are loaded; anything else is ignored.
 
 ```sh
@@ -49,6 +49,15 @@ docker run --rm -p 3030:3030 triple-store-container
 SPARQL endpoint accessible at [http://localhost:3030/sparql](http://localhost:3030/sparql).
 
 The server is read-only and exposes only the endpoints defined in `config.ttl`: `/sparql` (SPARQL query) and `/graph` (Graph Store Protocol, read).
+
+Queries can use full-text search ([Jena text](https://jena.apache.org/documentation/query/text-query.html)) and [GeoSPARQL](https://jena.apache.org/documentation/geosparql/). Both indexes are built with the image: the text index from the properties listed in `config.ttl`, and the spatial index from the geometries in the data (`geo:asWKT` or `geo:asGML` literals of features linked by `geo:hasGeometry`). For example, features within 10 km of a point:
+
+```sparql
+PREFIX spatial: <http://jena.apache.org/spatial#>
+SELECT ?feature WHERE { ?feature spatial:nearby (51.5072 -0.1276 10 <http://www.opengis.net/def/uom/OGC/1.0/kilometre>) }
+```
+
+To turn spatial indexing off, remove the import of `spatial-indexing.ttl` from `config.ttl` and point `text:dataset` at the store, as the comment there shows.
 
 Example requests:
 - [Get all statements](http://localhost:3030/sparql?query=CONSTRUCT%20%7B%20%3Fs%20%3Fp%20%3Fo%20%7D%20WHERE%20%7B%20%3Fs%20%3Fp%20%3Fo%20%7D) `CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o }`
@@ -93,7 +102,7 @@ Inputs:
 
 - `image`: image name to push, without tag (defaults to `<registry>/<owner>/<repo>` of the calling repository, e.g. `ghcr.io/theodi/my-knowledge-graph`);
 - `repositories-file`: JSON file of the calling repository listing the data repositories (defaults to `data-repositories.json`);
-- `config-path`: folder of the calling repository to use as the config (`config.ttl`, `log4j2.properties` and the optional `inference.ttl`; defaults to this repository's `config`);
+- `config-path`: folder of the calling repository to use as the config (`config.ttl` and the files it imports, `log4j2.properties` and the optional `inference.ttl`; defaults to this repository's `config`);
 - `registry`, `username` and the `registry-password` secret: registry to push to (defaults to `ghcr.io` with the calling workflow's `GITHUB_TOKEN`);
 - `platforms`: platforms to build for (defaults to `linux/amd64,linux/arm64`).
 
